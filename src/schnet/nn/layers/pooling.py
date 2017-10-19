@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ..module import Module
+from .module import Module
 
 
 class PoolSegments(Module):
@@ -11,6 +11,6 @@ class PoolSegments(Module):
             self._reduce = tf.segment_mean
         super(PoolSegments, self).__init__(name)
 
-    def _forward(self, x, ids):
-        y = self._reduce(x, ids)
+    def _forward(self, x, segs):
+        y = self._reduce(x, segs)
         return y

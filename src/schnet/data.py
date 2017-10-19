@@ -5,65 +5,8 @@ from random import shuffle
 import numpy as np
 import tensorflow as tf
 from ase.db import connect
-from ase.neighborlist import NeighborList
 
-
-class IsolatedAtomException(Exception):
-    pass
-
-
-def collect_neighbors(at, cutoff: float):
-    '''
-      Collect the neighborhood indices for an atomistic system, respecting
-      periodic boundary conditions.
-
-    :param ase.Atoms at: atomistic system
-    :param float cutoff: neighborhood cutoff
-    :return: neighborhood index vectors and offsets in lattice coordinates
-    '''
-    nbhlist = NeighborList(cutoffs=[cutoff] * len(at), bothways=True,
-                           self_interaction=False)
-    nbhlist.build(at)
-
-    idx_ik = []
-    seg_i = []
-    idx_j = []
-    seg_j = []
-    idx_jk = []
-    offset = []
-    c_sites = 0
-    for i in range(len(at)):
-        ind, off = nbhlist.get_neighbors(i)
-        sidx = np.argsort(ind)
-        ind = ind[sidx]
-        off = off[sidx]
-        uind = np.unique(ind)
-
-        idx_ik.append([i] * len(ind))
-        seg_i.append([i] * len(uind))
-        idx_j.append(uind)
-        idx_jk.append(ind)
-        offset.append(off)
-        if len(ind) > 0:
-            tmp = np.nonzero(np.diff(np.hstack((-1, ind, np.Inf))))[0]
-            rep = np.diff(tmp)
-            seg_ij = np.repeat(np.arange(len(uind)), rep) + c_sites
-            seg_j.append(seg_ij)
-            c_sites = seg_ij[-1] + 1
-        else:
-            raise IsolatedAtomException
-
-    seg_i = np.hstack(seg_i)
-    if len(seg_j) > 0:
-        seg_j = np.hstack(seg_j)
-    else:
-        seg_j = np.array([])
-    idx_ik = np.hstack(idx_ik)
-    idx_j = np.hstack(idx_j)
-    idx_jk = np.hstack(idx_jk)
-
-    offset = np.vstack(offset).astype(np.float32)
-    return idx_ik, seg_i, idx_j, idx_jk, seg_j, offset
+from schnet.atoms import collect_neighbors, IsolatedAtomException
 
 
 def generate_neighbor_dataset(asedb, nbhdb, cutoff):
@@ -74,17 +17,22 @@ def generate_neighbor_dataset(asedb, nbhdb, cutoff):
     :param str nbhdb: destination
     :param float cutoff: neighborhood cutoff radius
     '''
+    skipped = 0
     with connect(asedb, use_lock_file=False) as srccon:
         with connect(nbhdb, use_lock_file=False) as dstcon:
             for row in srccon.select():
                 at = row.toatoms()
-                res = collect_neighbors(at, cutoff)
-                if res is None:
-                    logging.warning('Skipping example ' + str(row.id) +
+
+                try:
+                    res = collect_neighbors(at, cutoff)
+                except IsolatedAtomException as e:
+                    logging.warning('Skipping example  ' + str(skipped) + ' ' +
+                                    str(row.id) +
                                     ' due to isolated atom with r_cut=' +
                                     str(cutoff))
+                    skipped += 1
                     continue
-                idx_ik, seg_i, idx_j, idx_jk, seg_j, offset = res
+                idx_ik, seg_i, idx_j, idx_jk, seg_j, offset, ratio_j = res
                 try:
                     data = row.data
                 except:
@@ -95,6 +43,7 @@ def generate_neighbor_dataset(asedb, nbhdb, cutoff):
                 data['_seg_i'] = seg_i
                 data['_seg_j'] = seg_j
                 data['_offset'] = offset
+                data['_ratio_j'] = ratio_j
                 dstcon.write(at, key_value_pairs=row.key_value_pairs,
                              data=data)
 
@@ -121,23 +70,13 @@ class ASEReader:
                                   Later indexing is within this subset.
     '''
 
-    def __init__(self, asedb, kvp_properties, data_properties, data_shapes,
-                 preload=False, subset=None):
+    def __init__(self, asedb, kvp_properties, data_properties=[],
+                 data_shapes=[]):
         self.asedb = asedb
         self.kvp = {k: (None, 1) for k in kvp_properties}
         self.data_props = dict(zip(data_properties, data_shapes))
-        self.properties = list(self.kvp.keys())+list(self.data_props.keys())
-        self.subset = subset
-        self.preload = preload
-
-        if preload:
-            subset = range(len(self)) if subset is None else subset
-            self.data = []
-            with connect(self.asedb) as conn:
-                for i in subset:
-                    self.data.append(conn.get(i))
-        else:
-            self.data = None
+        self.properties = list(self.kvp.keys()) + list(self.data_props.keys())
+        self.data = None
 
     @property
     def shapes(self):
@@ -148,7 +87,8 @@ class ASEReader:
             'idx_j': (None,),
             'idx_jk': (None,),
             'seg_j': (None,),
-            'charges': (None,),
+            'ratio_j': (None,),
+            'numbers': (None,),
             'positions': (None, 3),
             'offset': (None, 3),
             'cells': (None, 3, 3)
@@ -176,84 +116,94 @@ class ASEReader:
         if type(idx) is int:
             idx = [idx]
 
-        if self.subset is not None and not self.preload:
-            idx = self.subset[idx]
+        with connect(self.asedb) as conn:
+            data = {
+                'seg_m': [],
+                'idx_ik': [],
+                'seg_i': [],
+                'idx_j': [],
+                'idx_jk': [],
+                'seg_j': [],
+                'numbers': [],
+                'positions': [],
+                'offset': [],
+                'ratio_j': [],
+                'cells': []
+            }
 
-        if self.preload:
-            data = self._build_batch(self.data, idx)
-        else:
-            with connect(self.asedb) as conn:
-                data = self._build_batch(conn, idx)
+            for prop in self.properties:
+                data[prop] = []
+
+            c_atoms = 0
+            c_site_segs = 0
+            for k, i in enumerate(idx):
+                row = conn.get(int(i) + 1)
+                at = row.toatoms()
+
+                if len(row.data['_seg_j']) > 0:
+                    upd_site_segs = row.data['_seg_j'][-1] + 1
+                else:
+                    upd_site_segs = 0
+
+                data['seg_m'].append(np.array([k] * at.get_number_of_atoms()))
+                data['idx_ik'].append(row.data['_idx_ik'] + c_atoms)
+                data['seg_i'].append(row.data['_seg_i'] + c_atoms)
+                data['idx_j'].append(row.data['_idx_j'] + c_atoms)
+                data['idx_jk'].append(row.data['_idx_jk'] + c_atoms)
+                data['seg_j'].append(row.data['_seg_j'] + c_site_segs)
+                data['offset'].append(row.data['_offset'].astype(np.float32))
+                data['ratio_j'].append(row.data['_ratio_j'].astype(np.float32))
+                data['numbers'].append(at.get_atomic_numbers())
+                data['positions'].append(at.get_positions().astype(np.float32))
+                data['cells'].append(at.cell[np.newaxis].astype(np.float32))
+                c_atoms += at.get_number_of_atoms()
+                c_site_segs += upd_site_segs
+
+                for prop in self.kvp.keys():
+                    data[prop].append(np.array([[row[prop]]], dtype=np.float32))
+
+                for prop in self.data_props.keys():
+                    data[prop].append(row.data[prop], dtype=np.float32)
 
         data = {p: np.concatenate(b, axis=0) for p, b in data.items()}
         return data
 
-    def _load_row(self, data, idx):
-        if self.preload:
-            return data[idx]
-        else:
-            return data.get(idx)
+    def get_property(self, pname, idx):
+        if type(idx) is int:
+            idx = np.array([idx])
 
-    def _build_batch(self, datasrc, idx):
-        data = {
-            'seg_m': [],
-            'idx_ik': [],
-            'seg_i': [],
-            'idx_j': [],
-            'idx_jk': [],
-            'seg_j': [],
-            'charges': [],
-            'positions': [],
-            'offset': [],
-            'cells': []
-        }
+        idx = idx + 1
 
-        for prop in self.properties:
-            data[prop] = []
+        with connect(self.asedb) as conn:
+            property = [conn.get(int(i))[pname] for i in idx]
+        property = np.array(property)
+        return property
 
-        c_atoms = 0
-        c_sites = 0
-        c_site_segs = 0
-        for k, i in enumerate(idx):
-            row = self._load_row(datasrc, i)
-            at = row.toatoms()
+    def get_atomic_numbers(self, idx):
+        if type(idx) is int:
+            idx = np.array([idx])
 
-            if len(row.data['_idx_jk']) > 0:
-                upd_sites = row.data['_idx_jk'][-1] + 1
-            else:
-                upd_sites = 0
+        idx = idx + 1
 
-            if len(row.data['_seg_j']) > 0:
-                upd_site_segs = row.data['_seg_j'][-1] + 1
-            else:
-                upd_site_segs = 0
+        with connect(self.asedb) as conn:
+            numbers = [conn.get(int(i))['numbers'] for i in idx]
+        return numbers
 
-            data['seg_m'].append(np.array([k] * at.get_number_of_atoms()))
-            data['idx_ik'].append(row.data['_idx_ik'] + c_atoms)
-            data['seg_i'].append(row.data['_seg_i'] + c_atoms)
-            data['idx_j'].append(row.data['_idx_j'] + c_atoms)
-            data['idx_jk'].append(row.data['_idx_jk'] + c_sites)
-            data['seg_j'].append(row.data['_seg_j'] + c_site_segs)
-            data['offset'].append(row.data['_offset'])
-            data['charges'].append(at.get_atomic_numbers())
-            data['positions'].append(at.get_positions())
-            data['cells'].append([at.cell])
-            c_atoms += at.get_number_of_atoms()
-            c_sites += upd_sites
-            c_site_segs += upd_site_segs
+    def get_number_of_atoms(self, idx):
+        if type(idx) is int:
+            idx = np.array([idx])
 
-            for prop in self.kvp.keys():
-                data[prop].append(np.array([[row[prop]]]))
+        idx = idx + 1
 
-            for prop in self.data_props.keys():
-                data[prop].append(row.data[prop])
-        return data
+        with connect(self.asedb) as conn:
+            n_atoms = [conn.get(int(i))['natoms'] for i in idx]
+        n_atoms = np.array(n_atoms)
+        return n_atoms
 
 
 class DataProvider:
     def __init__(self, data_reader, batch_size,
-                 capacity=5000,
-                 indices=None, shuffle=True):
+                 indices=None, shuffle=True, capacity=5000):
         self.data_reader = data_reader
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -271,12 +221,9 @@ class DataProvider:
         self.dtypes = data_reader.dtypes
         self.dtypes = [self.dtypes[n] for n in self.names]
         self.placeholders = {
-            name: tf.placeholder(dt, name=name)
-            for dt, name in zip(self.dtypes, self.names)
+            name: tf.placeholder(dt, shape=shape, name=name)
+            for dt, name, shape in zip(self.dtypes, self.names, self.shapes)
         }
-        print(len(self.names), len(self.dtypes), len(self.shapes))
-        print(len(self.placeholders))
-        print(self.names, self.dtypes)
 
         self.queue = tf.PaddingFIFOQueue(capacity,
                                          dtypes=self.dtypes,
@@ -284,6 +231,9 @@ class DataProvider:
                                          names=self.names)
         self.enqueue_op = self.queue.enqueue(self.placeholders)
         self.dequeue_op = self.queue.dequeue()
+
+    def __len__(self):
+        return len(self.indices)
 
     def create_threads(self, sess, coord=None, daemon=False, start=True):
         if coord is None:
@@ -321,8 +271,4 @@ class DataProvider:
                     coord.request_stop(e)
 
     def get_batch(self):
-        # feat_dict = {}
-        # for name, feat, shape in zip(self.names, self.dequeue_op,
-        #                              self.shapes):
-        #     feat_dict[name] = feat
         return self.dequeue_op

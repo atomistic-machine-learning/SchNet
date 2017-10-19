@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from ..module import Module
+from .module import Module
+from .dense import Dense
 
 
 class Embedding(Module):

@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from ..module import Module
+from .module import Module
 from ..initializers import glorot_uniform
 from ..utils import shape
 

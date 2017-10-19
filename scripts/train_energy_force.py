@@ -126,7 +126,7 @@ def train(args):
 
     atomref = None
     try:
-        atomref = np.load(args.atom_refs)['atom_ref']
+        atomref = np.load(args.atomref)['atom_ref']
         if args.energy == 'energy_U0':
             atomref = atomref[:, 1:2]
         if args.energy == 'energy_U':
@@ -223,7 +223,7 @@ if __name__ == '__main__':
                         help='Use additional energy loss')
     parser.add_argument('--fit_force', action='store_true',
                         help='Use additional energy loss')
-    parser.add_argument('--atom_refs', help='Atom reference file (NPZ)',
+    parser.add_argument('--atomref', help='Atom reference file (NPZ)',
                         default=None)
     parser.add_argument('--batch_size', type=int, help='Batch size',
                         default=32)

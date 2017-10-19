@@ -12,6 +12,10 @@ Requirements:
 See the `scripts` folder for training and evaluation of SchNet 
 model for predicting the total energy (U0) for the GDB-9 data set.
 
+Install:
+
+    python3 setup.py install
+
 Download and convert QM9 data set:
 
     python3 load_qm9.py <qm9destination>
@@ -19,7 +23,7 @@ Download and convert QM9 data set:
 Train QM9 energy (U0) prediction:
 
     python3 train_energy_forces.py <qm9destination>/qm9.db ./modeldir ./split50k.npz 
-        --ntrain 50000 --nval 10000 --fit_energy --atomrefs <qm9destination>/atomrefs.npz
+        --ntrain 50000 --nval 10000 --fit_energy --atomref <qm9destination>/atomref.npz
 
 
 If you use SchNet in your research, please cite:

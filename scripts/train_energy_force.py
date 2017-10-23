@@ -184,6 +184,8 @@ def train(args):
                             train_loss, train_errors,
                             val_loss, val_errors,
                             partial(collect_summaries, args),
+                            save_interval=args.saveint,
+                            validation_interval=args.valint,
                             validation_batches=valbatches,
                             global_step=global_step)
 
@@ -241,6 +243,8 @@ if __name__ == '__main__':
                         default=5000000)
     parser.add_argument('--valint', type=int, help='Validation interval',
                         default=5000)
+    parser.add_argument('--saveint', type=int, help='Checkpoint interval',
+                        default=50000)
     parser.add_argument('--valbatch', type=int,
                         help='Size of validation batches',
                         default=100)

@@ -8,6 +8,7 @@ class EarlyStopping:
     def __init__(self, output_dir, model, train_op,
                  train_loss, train_errors, val_loss, val_errors, summary_fn,
                  validation_batches, global_step,
+                 save_interval=1000,
                  validation_interval=1000, summary_interval=1000):
         self.output_dir = output_dir
         self.model = model
@@ -20,6 +21,7 @@ class EarlyStopping:
         self.global_step = global_step
         self.validation_batches = validation_batches
         self.validation_interval = validation_interval
+        self.save_interval = save_interval
         self.summary_interval = summary_interval
 
         self.chkpt_dir = os.path.join(output_dir, 'chkpoints')
@@ -45,7 +47,6 @@ class EarlyStopping:
             np.savez(self.loss_path, loss=self.best_loss, step=self.best_step)
 
         self.saver = tf.train.Saver()
-        self.val_saver = tf.train.Saver()
         self.train_writer = tf.summary.FileWriter(self.train_dir)
         self.val_writer = tf.summary.FileWriter(self.val_dir)
         self.start_iter = 0
@@ -98,6 +99,9 @@ class EarlyStopping:
                     np.savez(self.loss_path, loss=self.best_loss,
                              step=self.best_step)
                     self.model.save(sess, self.models_dir, global_step=step)
+
+            if step % self.save_interval == 0:
+                self.saver.save(sess, self.chkpt_dir, global_step=step)
 
 
 def build_train_op(loss, optimizer, global_step, moving_avg_decay=0.99,

@@ -148,7 +148,6 @@ def train(args):
     val_data = val_provider.get_batch()
 
     logging.info('Collect train data statistics')
-    train_idx = np.arange(20)
     E = data_reader.get_property(args.energy, train_idx)
     Z = data_reader.get_atomic_numbers(train_idx)
     mean_energy_per_atom, stddev_energy_per_atom = \

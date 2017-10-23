@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import schnet
 from ase.db import connect
+import tensorflow as tf
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -93,3 +94,38 @@ def test_reader_full_batch(mol_path):
         assert np.all(data['idx_ik'] == idx_ik)
         assert np.all(data['idx_jk'] == idx_jk), data['idx_jk']
         assert np.allclose(data['ratio_j'], ratio_j)
+
+
+def test_data_provider(mol_path):
+    reader = schnet.ASEReader(mol_path, ['energy_U0'], [], [])
+    sidx = np.random.permutation(range(len(reader)))
+    train_idx = sidx[:len(reader)//2]
+    val_idx = sidx[len(reader) // 2:]
+
+    assert len(np.intersect1d(train_idx, val_idx)) == 0
+
+    train_provider = schnet.DataProvider(reader, 1, train_idx)
+    val_provider = schnet.DataProvider(reader, 1, val_idx, shuffle=False)
+
+    E_train = []
+    E_val = []
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        coord = tf.train.Coordinator()
+        train_provider.create_threads(sess, coord)
+        val_provider.create_threads(sess, coord)
+
+        train_batch = train_provider.get_batch()
+        val_batch = val_provider.get_batch()
+
+        for i in range(100):
+            E_train.append(sess.run(train_batch)['energy_U0'])
+            E_val.append(sess.run(val_batch)['energy_U0'])
+
+    print(E_train)
+    print(E_val)
+    print(np.intersect1d(E_train, E_val))
+    assert len(np.intersect1d(E_train, E_val)) == 0
+
+
+

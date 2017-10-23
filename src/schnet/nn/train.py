@@ -85,7 +85,7 @@ class EarlyStopping:
                 errors = []
                 for i in range(self.validation_batches):
                     result = sess.run(
-                        [self.train_loss] + self.train_errors
+                        [self.val_errors] + self.val_errors
                     )
                     loss.append(result[0])
                     errors.append(result[1:])

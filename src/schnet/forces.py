@@ -2,8 +2,6 @@ import numpy as np
 import tensorflow as tf
 from schnet.data import get_atoms_input
 
-from scripts.train_energy_force import args
-
 
 def predict_energy_forces(model, data):
     atoms_input = get_atoms_input(data)
@@ -17,7 +15,7 @@ def calculate_errors(Ep, Fp, data, energy_prop, force_prop,
                      rho, fit_energy=True, fit_forces=True):
     loss = 0.
 
-    if args.forces != 'none':
+    if force_prop != 'none':
         F = data[force_prop]
         fdiff = F - Fp
     else:

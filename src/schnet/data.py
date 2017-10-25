@@ -272,3 +272,12 @@ class DataProvider:
 
     def get_batch(self):
         return self.dequeue_op
+
+
+def get_atoms_input(data):
+    atoms_input = (
+        data['numbers'], data['positions'], data['offset'], data['idx_ik'],
+        data['idx_jk'], data['idx_j'], data['seg_m'], data['seg_i'],
+        data['seg_j'], data['ratio_j']
+    )
+    return atoms_input

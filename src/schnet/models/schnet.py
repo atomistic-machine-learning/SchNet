@@ -179,3 +179,5 @@ def print_shape(t, name=None):
     if name is None:
         name = t.name
     return tf.Print(t, [tf.shape(t), t], summarize=20, message=name)
+
+

@@ -25,6 +25,7 @@ class EarlyStopping:
         self.summary_interval = summary_interval
 
         self.chkpt_dir = os.path.join(output_dir, 'chkpoints')
+        self.chkpts = os.path.join(output_dir, 'chkpoints', 'chkpoints')
         self.train_dir = os.path.join(output_dir, 'train')
         self.val_dir = os.path.join(output_dir, 'validation')
         self.models_dir = os.path.join(output_dir, 'validation/best_model')
@@ -101,7 +102,7 @@ class EarlyStopping:
                     self.model.save(sess, self.models_dir, global_step=step)
 
             if step % self.save_interval == 0:
-                self.saver.save(sess, self.chkpt_dir, global_step=step)
+                self.saver.save(sess, self.chkpts, global_step=step)
 
 
 def build_train_op(loss, optimizer, global_step, moving_avg_decay=0.99,

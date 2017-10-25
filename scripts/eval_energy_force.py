@@ -111,7 +111,7 @@ if __name__ == '__main__':
                 continue
             split_name = '_'.join(dir.split('_')[9:])
             split_file = os.path.join(args.splitdir, split_name + '.npz')
-            indices = np.load(split_file)[split]
+            indices = np.load(split_file)[args.split]
             res = eval(mdir, args.data, indices,
                        args.energy, args.forces, args.split)
             res = [str(np.round(r, 4)) for r in res]

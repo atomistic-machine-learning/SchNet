@@ -144,7 +144,6 @@ class SchNet(L.Module):
 
         # interaction features
         dijk = self.dist(r, offsets, idx_ik, idx_jk)
-        # dijk = print_shape(dijk, 'dij')
         dijk = self.rbf(dijk)
 
         # interaction blocks
@@ -165,6 +164,15 @@ class SchNet(L.Module):
 
         y = self.atom_pool(y_i, seg_m)
         return y
+
+    def get_filters(self, r, offsets, idx_ik, idx_jk, seg_j, ratio_j):
+        dijk = self.dist(r, offsets, idx_ik, idx_jk)
+        dijk = self.rbf(dijk)
+
+        filters = []
+        for iblock in self.interaction_blocks:
+            filters.append(iblock._calc_filter(dijk, seg_j, ratio_j))
+        return filters
 
 
 def print_shape(t, name=None):

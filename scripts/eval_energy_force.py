@@ -15,7 +15,7 @@ from schnet.nn.train import EarlyStopping, build_train_op
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
-def eval(model_path, data_path, indices, energy, forces, name, batch_size=100):
+def eval(model_path, data_path, indices, energy, forces, name, batch_size=100, atomref=None):
     tf.reset_default_graph()
     checkpoint_dir = os.path.join(model_path, 'validation')
     ckpt = tf.train.latest_checkpoint(checkpoint_dir)
@@ -23,18 +23,35 @@ def eval(model_path, data_path, indices, energy, forces, name, batch_size=100):
 
     args = np.load(os.path.join(model_path, 'args.npy')).item()
 
+    atomref = None
+    try:
+        atomref = np.load(atomref)['atom_ref']
+        if args.energy == 'energy_U0':
+            atomref = atomref[:, 1:2]
+        if args.energy == 'energy_U':
+            atomref = atomref[:, 2:3]
+        if args.energy == 'enthalpy_H':
+            atomref = atomref[:, 3:4]
+        if args.energy == 'free_G':
+            atomref = atomref[:, 4:5]
+        if args.energy == 'Cv':
+            atomref = atomref[:, 5:6]
+    except Exception as e:
+        print(e)
+
     # setup data pipeline
     logging.info('Setup data reader')
-    forces = [args.forces] if args.forces != 'none' else []
+    fforces = [forces] if forces != 'none' else []
     data_reader = ASEReader(args.data,
-                            [args.energy],
-                            forces, [(None, 3)])
+                            [energy],
+                            fforces, [(None, 3)])
     data_provider = DataProvider(data_reader, batch_size, indices,
                                  shuffle=False)
     data_batch = data_provider.get_batch()
 
     logging.info('Setup model')
     schnet = SchNet(args.interactions, args.basis, args.filters, args.cutoff,
+                    atomref=atomref,
                     intensive=args.intensive,
                     filter_pool_mode=args.filter_pool_mode)
 
@@ -100,6 +117,8 @@ if __name__ == '__main__':
                         default='energy_U0')
     parser.add_argument('--forces', help='Name of run',
                         default='none')
+    parser.add_argument('--atomref', help='Atom reference file (NPZ)',
+                        default=None)
     args = parser.parse_args()
 
     with open(os.path.join(args.path, 'errors_' + args.split + '.csv'),
@@ -109,11 +128,16 @@ if __name__ == '__main__':
             mdir = os.path.join(args.path, dir)
             if not os.path.isdir(mdir):
                 continue
+            print(mdir)
             split_name = '_'.join(dir.split('_')[9:])
             split_file = os.path.join(args.splitdir, split_name + '.npz')
             indices = np.load(split_file)[args.split]
-            res = eval(mdir, args.data, indices,
-                       args.energy, args.forces, args.split)
+            try:
+                res = eval(mdir, args.data, indices,
+                           args.energy, args.forces, args.split, atomref=args.atomref)
+            except Exception as e:
+                print(e)
+                continue
             res = [str(np.round(r, 4)) for r in res]
             f.write(dir + ',' + ','.join(res) + '\n')
             print(dir, res)

@@ -163,7 +163,7 @@ class ASEReader:
                     data[prop].append(np.array([[row[prop]]], dtype=np.float32))
 
                 for prop in self.data_props.keys():
-                    data[prop].append(row.data[prop], dtype=np.float32)
+                    data[prop].append(row.data[prop].astype(np.float32))
 
         data = {p: np.concatenate(b, axis=0) for p, b in data.items()}
         return data

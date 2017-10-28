@@ -42,7 +42,7 @@ def eval(model_path, data_path, indices, energy, forces, name, batch_size=100, a
     # setup data pipeline
     logging.info('Setup data reader')
     fforces = [forces] if forces != 'none' else []
-    data_reader = ASEReader(args.data,
+    data_reader = ASEReader(data_path,
                             [energy],
                             fforces, [(None, 3)])
     data_provider = DataProvider(data_reader, batch_size, indices,

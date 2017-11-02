@@ -74,19 +74,21 @@ def eval(model_path, data_path, indices, energy, forces, name, batch_size=100, a
 
         for i in range(len(data_provider) // batch_size):
             if forces != 'none':
-                e, f, ep, fp = sess.run([Et, Ft, Ep, Fp])
+                e, f, ep, fp, aid = sess.run([Et, Ft, Ep, Fp, data_batch['aid']])
                 F.append(f)
                 Fpred.append(fp)
             else:
-                e, ep = sess.run([Et, Ep])
+                e, ep, aid = sess.run([Et, Ep, data_batch['aid']])
             E.append(e)
             Epred.append(ep)
+            aids.append(aid)
 
             count += 1
             if count % 10 == 0:
                 print(count)
 
     E = np.hstack(E).ravel()
+    aids = np.hstack(aids)
     Epred = np.hstack(Epred).ravel()
     e_mae = np.mean(np.abs(E - Epred))
     e_rmse = np.sqrt(np.mean(np.square(E - Epred)))
@@ -102,7 +104,7 @@ def eval(model_path, data_path, indices, energy, forces, name, batch_size=100, a
         f_mae = 0.
         f_rmse = 0.
     np.savez(os.path.join(model_path, 'results_' + name + '.npz'),
-             F=F, Fpred=Fpred, E=E, Epred=Epred)
+             F=F, Fpred=Fpred, E=E, Epred=Epred, aids=aids)
     return e_mae, e_rmse, f_mae, f_rmse
 
 

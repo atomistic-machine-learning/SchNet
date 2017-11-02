@@ -81,6 +81,7 @@ class ASEReader:
     @property
     def shapes(self):
         shapes = {
+            'aid': (None,),
             'seg_m': (None,),
             'idx_ik': (None,),
             'seg_i': (None,),
@@ -118,6 +119,7 @@ class ASEReader:
 
         with connect(self.asedb) as conn:
             data = {
+                'aid': [],
                 'seg_m': [],
                 'idx_ik': [],
                 'seg_i': [],
@@ -145,6 +147,7 @@ class ASEReader:
                 else:
                     upd_site_segs = 0
 
+                data['aid'].append(np.array([i]))
                 data['seg_m'].append(np.array([k] * at.get_number_of_atoms()))
                 data['idx_ik'].append(row.data['_idx_ik'] + c_atoms)
                 data['seg_i'].append(row.data['_seg_i'] + c_atoms)

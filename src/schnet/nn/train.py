@@ -87,13 +87,13 @@ class EarlyStopping:
                 errors = []
                 for i in range(self.validation_batches):
                     result = sess.run(
-                        [self.val_errors] + self.val_errors
+                        [self.val_loss] + self.val_errors
                     )
                     loss.append(result[0])
                     errors.append(result[1:])
+                
                 vloss, summary = self.summary_fn(loss, list(zip(*errors)))
                 self.val_writer.add_summary(summary, global_step=step)
-
                 if vloss < self.best_loss:
                     self.best_loss = vloss
                     self.best_step = step

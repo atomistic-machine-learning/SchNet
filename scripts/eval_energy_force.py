@@ -72,7 +72,7 @@ def eval(model_path, data_path, indices, energy, forces, name, batch_size=100, a
         data_provider.create_threads(sess, coord)
         schnet.restore(sess, ckpt)
 
-        for i in range(len(data_reader) // batch_size):
+        for i in range(len(data_provider) // batch_size):
             if forces != 'none':
                 e, f, ep, fp = sess.run([Et, Ft, Ep, Fp])
                 F.append(f)
@@ -119,6 +119,8 @@ if __name__ == '__main__':
                         default='none')
     parser.add_argument('--atomref', help='Atom reference file (NPZ)',
                         default=None)
+    parser.add_argument('--splitname', help='Name of data split',
+                        default=None)
     args = parser.parse_args()
 
     with open(os.path.join(args.path, 'errors_' + args.split + '.csv'),
@@ -129,15 +131,19 @@ if __name__ == '__main__':
             if not os.path.isdir(mdir):
                 continue
             print(mdir)
-            split_name = '_'.join(dir.split('_')[9:])
+            if args.splitname is None:
+                split_name = '_'.join(dir.split('_')[9:])
+            else:
+                split_name = args.splitname
             split_file = os.path.join(args.splitdir, split_name + '.npz')
             indices = np.load(split_file)[args.split]
+            print(len(indices)//100)
             try:
                 res = eval(mdir, args.data, indices,
                            args.energy, args.forces, args.split, atomref=args.atomref)
             except Exception as e:
                 print(e)
                 continue
-            res = [str(np.round(r, 4)) for r in res]
+            res = [str(np.round(r, 8)) for r in res]
             f.write(dir + ',' + ','.join(res) + '\n')
             print(dir, res)

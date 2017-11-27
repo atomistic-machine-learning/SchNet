@@ -30,7 +30,7 @@ If you use SchNet in your research, please cite:
 
 *K.T. Schütt. P.-J. Kindermans, H. E. Sauceda, S. Chmiela, A. Tkatchenko, K.-R. Müller.  
 SchNet: A continuous-filter convolutional neural network for modeling quantum interactions.*  
-Advances in Neural Information Processing Systems (2017)
+Advances in Neural Information Processing Systems 30, pp. 992-1002 (2017)
 
 *K.T. Schütt. F. Arbabzadah. S. Chmiela, K.-R. Müller, A. Tkatchenko.  
 Quantum-chemical insights from deep tensor neural networks.*  

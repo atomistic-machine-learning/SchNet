@@ -160,7 +160,7 @@ class SchNet(L.Module):
 
         # scale energy contributions
         y_i = y_i * self.std_per_atom + self.mean_per_atom
-
+        at_i = y_i
         if self.e0 is not None:
             y_i += self.e0(z)
 
@@ -168,7 +168,7 @@ class SchNet(L.Module):
 
         if not self.return_features:
             return y
-        return y, y_i, x
+        return y, y_i, at_i, x
 
     def get_filters(self, r, offsets, idx_ik, idx_jk, seg_j, ratio_j):
         dijk = self.dist(r, offsets, idx_ik, idx_jk)

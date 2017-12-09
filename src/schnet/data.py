@@ -1,4 +1,4 @@
-import logging
+import logg     validate_indices, name, axis)ing
 import threading
 from random import shuffle
 
@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from ase.db import connect
 from schnet.atoms import collect_neighbors, IsolatedAtomException
-
+import time
 
 def generate_neighbor_dataset(asedb, nbhdb, cutoff):
     '''

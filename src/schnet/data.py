@@ -5,7 +5,6 @@ from random import shuffle
 import numpy as np
 import tensorflow as tf
 from ase.db import connect
-
 from schnet.atoms import collect_neighbors, IsolatedAtomException
 
 
@@ -117,6 +116,8 @@ class ASEReader:
         if type(idx) is int:
             idx = [idx]
 
+        #start = time.time()
+
         with connect(self.asedb) as conn:
             data = {
                 'aid': [],
@@ -169,6 +170,9 @@ class ASEReader:
                     data[prop].append(row.data[prop].astype(np.float32))
 
         data = {p: np.concatenate(b, axis=0) for p, b in data.items()}
+
+        #print('Batch time:', time.time()-start)
+
         return data
 
     def get_property(self, pname, idx):

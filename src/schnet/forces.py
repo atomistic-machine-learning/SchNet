@@ -5,9 +5,10 @@ from schnet.data import get_atoms_input
 
 def predict_energy_forces(model, data):
     atoms_input = get_atoms_input(data)
-    Ep = model(*atoms_input)
-    Fp = -tf.convert_to_tensor(
-        tf.gradients(tf.reduce_sum(Ep), atoms_input[1])[0])
+    g = tf.get_default_graph()
+    with g.gradient_override_map({"Tile": "TileDense"}):
+        Ep = model(*atoms_input)
+        Fp = -tf.gradients(tf.reduce_sum(Ep), atoms_input[1])[0]
     return Ep, Fp
 
 

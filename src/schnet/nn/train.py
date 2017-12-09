@@ -48,11 +48,13 @@ class EarlyStopping:
             np.savez(self.loss_path, loss=self.best_loss, step=self.best_step)
 
         self.saver = tf.train.Saver()
-        self.train_writer = tf.summary.FileWriter(self.train_dir)
         self.val_writer = tf.summary.FileWriter(self.val_dir)
         self.start_iter = 0
 
     def train(self, sess, coord, max_steps):
+        self.train_writer = tf.summary.FileWriter(self.train_dir,
+                                                  graph=sess.graph)
+
         # restore
         chkpt = tf.train.latest_checkpoint(self.chkpt_dir)
         if chkpt is not None:
@@ -91,7 +93,7 @@ class EarlyStopping:
                     )
                     loss.append(result[0])
                     errors.append(result[1:])
-                
+
                 vloss, summary = self.summary_fn(loss, list(zip(*errors)))
                 self.val_writer.add_summary(summary, global_step=step)
                 if vloss < self.best_loss:
@@ -106,7 +108,7 @@ class EarlyStopping:
 
 
 def build_train_op(loss, optimizer, global_step, moving_avg_decay=0.99,
-          dependencies=[]):
+                   dependencies=[]):
     grads = optimizer.compute_gradients(loss)
     apply_gradient_op = optimizer.apply_gradients(grads,
                                                   global_step=global_step)
@@ -117,7 +119,7 @@ def build_train_op(loss, optimizer, global_step, moving_avg_decay=0.99,
 
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(
-                            [apply_gradient_op,
-                             variables_averages_op] + update_ops + dependencies):
+            [apply_gradient_op,
+             variables_averages_op] + update_ops + dependencies):
         train_op = tf.no_op(name='train')
     return train_op

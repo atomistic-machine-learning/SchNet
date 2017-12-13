@@ -66,6 +66,7 @@ class SchNet(L.Module):
                  std_per_atom=np.ones((1,), dtype=np.float32),
                  gap=0.1, atomref=None, intensive=False,
                  filter_pool_mode='sum',
+                 return_features=False,
                  shared_interactions=False,
                  n_embeddings=100, name=None):
         self.n_interactions = n_interactions
@@ -74,6 +75,7 @@ class SchNet(L.Module):
         self.n_embeddings = n_embeddings
         self.cutoff = cutoff
         self.shared_interactions = shared_interactions
+        self.return_features = return_features
         self.intensive = intensive
         self.filter_pool_mode = filter_pool_mode
         self.atomref = atomref
@@ -158,12 +160,15 @@ class SchNet(L.Module):
 
         # scale energy contributions
         y_i = y_i * self.std_per_atom + self.mean_per_atom
-
+        at_i = y_i
         if self.e0 is not None:
             y_i += self.e0(z)
 
         y = self.atom_pool(y_i, seg_m)
-        return y
+
+        if not self.return_features:
+            return y
+        return y, y_i, at_i, x
 
     def get_filters(self, r, offsets, idx_ik, idx_jk, seg_j, ratio_j):
         dijk = self.dist(r, offsets, idx_ik, idx_jk)

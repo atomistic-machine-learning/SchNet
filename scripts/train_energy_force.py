@@ -4,74 +4,15 @@ import os
 from functools import partial
 
 import numpy as np
-from schnet.nn.train import EarlyStopping, build_train_op
 import tensorflow as tf
 from schnet.atoms import stats_per_atom
 from schnet.data import ASEReader, DataProvider
+from schnet.forces import predict_energy_forces, calculate_errors, \
+    collect_summaries
 from schnet.models import SchNet
+from schnet.nn.train import EarlyStopping, build_train_op
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
-
-
-def get_schnet_input(data):
-    schnet_input = (
-        data['numbers'], data['positions'], data['offset'], data['idx_ik'],
-        data['idx_jk'], data['idx_j'], data['seg_m'], data['seg_i'],
-        data['seg_j'], data['ratio_j']
-    )
-    return schnet_input
-
-
-def predict_energy_forces(schnet, data):
-    schnet_input = get_schnet_input(data)
-    Ep = schnet(*schnet_input)
-    Fp = -tf.convert_to_tensor(
-        tf.gradients(tf.reduce_sum(Ep), schnet_input[1])[0])
-    return Ep, Fp
-
-
-def calculate_errors(args, data, Ep, Fp):
-    loss = 0.
-
-    if args.forces != 'none':
-        F = data[args.forces]
-        fdiff = F - Fp
-    else:
-        fdiff = Fp
-
-    fmse = tf.reduce_mean(fdiff ** 2)
-    fmae = tf.reduce_mean(tf.abs(fdiff))
-
-    if args.fit_force:
-        loss += tf.nn.l2_loss(fdiff)
-
-    E = data[args.energy]
-    ediff = E - Ep
-    eloss = tf.nn.l2_loss(ediff)
-
-    emse = tf.reduce_mean(ediff ** 2)
-    emae = tf.reduce_mean(tf.abs(ediff))
-
-    if args.fit_energy:
-        loss += args.eweight * eloss
-
-    errors = [emse, emae, fmse, fmae]
-    return loss, errors
-
-
-def collect_summaries(args, loss, errors):
-    emse, emae, fmse, fmae = errors
-    vloss = np.sum(loss)
-
-    summary = tf.Summary()
-    summary.value.add(tag='loss', simple_value=vloss)
-    summary.value.add(tag='total_energy_RMSE',
-                      simple_value=np.sqrt(np.mean(emse[0])))
-    summary.value.add(tag='total_energy_MAE', simple_value=np.mean(emae))
-    if args.forces != 'none':
-        summary.value.add(tag='force_RMSE', simple_value=np.sqrt(np.mean(fmse)))
-        summary.value.add(tag='force_MAE', simple_value=np.mean(fmae))
-    return vloss, summary
 
 
 def train(args):
@@ -166,9 +107,14 @@ def train(args):
     Ep_val, Fp_val = predict_energy_forces(schnet, val_data)
 
     # calculate loss, errors & summaries
-    train_loss, train_errors = calculate_errors(args, train_data, Ep_train,
-                                                Fp_train)
-    val_loss, val_errors = calculate_errors(args, val_data, Ep_val, Fp_val)
+    train_loss, train_errors = calculate_errors(Ep_train, Fp_train, train_data,
+                                                args.energy, args.forces,
+                                                args.eweight, args.fit_energy,
+                                                args.fit_force)
+    val_loss, val_errors = calculate_errors(Ep_val, Fp_val, val_data,
+                                            args.energy, args.forces,
+                                            args.eweight, args.fit_energy,
+                                            args.fit_force)
 
     # setup training
     logging.info('Setup optimizer')

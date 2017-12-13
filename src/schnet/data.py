@@ -5,7 +5,6 @@ from random import shuffle
 import numpy as np
 import tensorflow as tf
 from ase.db import connect
-
 from schnet.atoms import collect_neighbors, IsolatedAtomException
 
 
@@ -81,6 +80,7 @@ class ASEReader:
     @property
     def shapes(self):
         shapes = {
+            'aid': (None,),
             'seg_m': (None,),
             'idx_ik': (None,),
             'seg_i': (None,),
@@ -116,8 +116,11 @@ class ASEReader:
         if type(idx) is int:
             idx = [idx]
 
+        #start = time.time()
+
         with connect(self.asedb) as conn:
             data = {
+                'aid': [],
                 'seg_m': [],
                 'idx_ik': [],
                 'seg_i': [],
@@ -145,6 +148,7 @@ class ASEReader:
                 else:
                     upd_site_segs = 0
 
+                data['aid'].append(np.array([i]))
                 data['seg_m'].append(np.array([k] * at.get_number_of_atoms()))
                 data['idx_ik'].append(row.data['_idx_ik'] + c_atoms)
                 data['seg_i'].append(row.data['_seg_i'] + c_atoms)
@@ -163,9 +167,12 @@ class ASEReader:
                     data[prop].append(np.array([[row[prop]]], dtype=np.float32))
 
                 for prop in self.data_props.keys():
-                    data[prop].append(row.data[prop], dtype=np.float32)
+                    data[prop].append(row.data[prop].astype(np.float32))
 
         data = {p: np.concatenate(b, axis=0) for p, b in data.items()}
+
+        #print('Batch time:', time.time()-start)
+
         return data
 
     def get_property(self, pname, idx):
@@ -272,3 +279,12 @@ class DataProvider:
 
     def get_batch(self):
         return self.dequeue_op
+
+
+def get_atoms_input(data):
+    atoms_input = (
+        data['numbers'], data['positions'], data['offset'], data['idx_ik'],
+        data['idx_jk'], data['idx_j'], data['seg_m'], data['seg_i'],
+        data['seg_j'], data['ratio_j']
+    )
+    return atoms_input

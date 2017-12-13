@@ -12,5 +12,7 @@ class PoolSegments(Module):
         super(PoolSegments, self).__init__(name)
 
     def _forward(self, x, segs):
-        y = self._reduce(x, segs)
+        g = tf.get_default_graph()
+        with g.gradient_override_map({"Tile": "TileDense"}):
+            y = self._reduce(x, segs)
         return y

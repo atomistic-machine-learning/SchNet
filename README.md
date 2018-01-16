@@ -22,7 +22,7 @@ Download and convert QM9 data set:
 
 Train QM9 energy (U0) prediction:
 
-    python3 train_energy_forces.py <qm9destination>/qm9.db ./modeldir ./split50k.npz 
+    python3 train_energy_force.py <qm9destination>/qm9.db ./modeldir ./split50k.npz 
         --ntrain 50000 --nval 10000 --fit_energy --atomref <qm9destination>/atomref.npz
 
 

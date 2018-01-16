@@ -19,14 +19,13 @@ def calculate_errors(Ep, Fp, data, energy_prop, force_prop,
     if force_prop != 'none':
         F = data[force_prop]
         fdiff = F - Fp
+        fmse = tf.reduce_mean(fdiff ** 2)
+        fmae = tf.reduce_mean(tf.abs(fdiff))
+        if fit_forces:
+            loss += tf.nn.l2_loss(fdiff)
     else:
-        fdiff = Fp
-
-    fmse = tf.reduce_mean(fdiff ** 2)
-    fmae = tf.reduce_mean(tf.abs(fdiff))
-
-    if fit_forces:
-        loss += tf.nn.l2_loss(fdiff)
+        fmse = tf.constant(0.)
+        fmae = tf.constant(0.)
 
     E = data[energy_prop]
     ediff = E - Ep

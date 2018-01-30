@@ -22,10 +22,6 @@ def get_atom_indices(n_atoms, batch_size):
     ratio_j = np.ones((n_distances * batch_size,), dtype=np.float32)
     seg_j = np.arange(n_distances * batch_size, dtype=np.int32)
 
-    print(seg_m, idx_ik, seg_i,
-          idx_j, seg_j,
-          offset, ratio_j)
-
     seg_m, idx_ik, seg_i, idx_j, seg_j, offset, ratio_j = \
         tf.constant(seg_m), tf.constant(idx_ik), tf.constant(seg_i), tf.constant(idx_j), \
         tf.constant(seg_j), tf.constant(offset), tf.constant(ratio_j)
@@ -39,9 +35,6 @@ class SchNetMD:
 
         self.n_atoms = len(nuclear_charges)
         seg_m, idx_ik, seg_i, idx_j, idx_jk, seg_j, offset, ratio_j = get_atom_indices(self.n_atoms, batch_size)
-        print(seg_m.get_shape(), idx_ik.get_shape(), seg_i.get_shape(),
-              idx_j.get_shape(), idx_jk.get_shape(), seg_j.get_shape(),
-              offset.get_shape(), ratio_j.get_shape())
 
         self.energy_model = self.load_model(energy_model_path)
         self.force_model = self.load_model(force_model_path) \
@@ -50,7 +43,6 @@ class SchNetMD:
         self.positions = tf.placeholder(tf.float32, shape=(batch_size * self.n_atoms, 3))
         self.charges = tf.tile(tf.constant(nuclear_charges.ravel(), dtype=tf.int64),
                                (batch_size,))
-        print(self.positions.get_shape())
 
         g = tf.get_default_graph()
         with g.gradient_override_map({"Tile": "TileDense"}):

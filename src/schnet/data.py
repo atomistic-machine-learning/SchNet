@@ -1,3 +1,4 @@
+import os
 import logging
 import threading
 from random import shuffle
@@ -6,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from ase.db import connect
 from schnet.atoms import collect_neighbors, IsolatedAtomException
+import time
 
 
 def generate_neighbor_dataset(asedb, nbhdb, cutoff):
@@ -116,8 +118,6 @@ class ASEReader:
         if type(idx) is int:
             idx = [idx]
 
-        #start = time.time()
-
         with connect(self.asedb) as conn:
             data = {
                 'aid': [],
@@ -149,12 +149,12 @@ class ASEReader:
                     upd_site_segs = 0
 
                 data['aid'].append(np.array([i]))
-                data['seg_m'].append(np.array([k] * at.get_number_of_atoms()))
-                data['idx_ik'].append(row.data['_idx_ik'] + c_atoms)
-                data['seg_i'].append(row.data['_seg_i'] + c_atoms)
-                data['idx_j'].append(row.data['_idx_j'] + c_atoms)
-                data['idx_jk'].append(row.data['_idx_jk'] + c_atoms)
-                data['seg_j'].append(row.data['_seg_j'] + c_site_segs)
+                data['seg_m'].append(np.array([k] * at.get_number_of_atoms()).astype(np.int32))
+                data['idx_ik'].append((row.data['_idx_ik'] + c_atoms).astype(np.int32))
+                data['seg_i'].append((row.data['_seg_i'] + c_atoms).astype(np.int32))
+                data['idx_j'].append((row.data['_idx_j'] + c_atoms).astype(np.int32))
+                data['idx_jk'].append((row.data['_idx_jk'] + c_atoms).astype(np.int32))
+                data['seg_j'].append((row.data['_seg_j'] + c_site_segs).astype(np.int32))
                 data['offset'].append(row.data['_offset'].astype(np.float32))
                 data['ratio_j'].append(row.data['_ratio_j'].astype(np.float32))
                 data['numbers'].append(at.get_atomic_numbers())
@@ -170,8 +170,6 @@ class ASEReader:
                     data[prop].append(row.data[prop].astype(np.float32))
 
         data = {p: np.concatenate(b, axis=0) for p, b in data.items()}
-
-        #print('Batch time:', time.time()-start)
 
         return data
 
@@ -266,6 +264,7 @@ class DataProvider:
 
             for bstart in range(0, len(self.indices) - self.batch_size + 1,
                                 self.batch_size):
+                start = time.time()
                 batch = self.data_reader[
                     self.indices[bstart:bstart + self.batch_size]]
                 feed_dict = {
@@ -276,9 +275,13 @@ class DataProvider:
                     sess.run(self.enqueue_op, feed_dict=feed_dict)
                 except Exception as e:
                     coord.request_stop(e)
+                print('Enqueue:', time.time() - start)
+                time.sleep(0.1)
 
     def get_batch(self):
-        return self.dequeue_op
+        deq = self.dequeue_op
+        deq['seg_m'] = tf.Print(deq['seg_m'], [tf.shape(deq['seg_m'])], message='Dequeue')
+        return deq
 
 
 def get_atoms_input(data):

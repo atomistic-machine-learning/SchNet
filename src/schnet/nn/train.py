@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from time import time
 
 
 class EarlyStopping:
@@ -82,7 +83,9 @@ class EarlyStopping:
                 _, summary = self.summary_fn(loss, list(zip(*[errors])))
                 self.train_writer.add_summary(summary, global_step=step)
             else:
+                start = time()
                 _, step = sess.run([self.train_op, self.global_step])
+                print('Train step:', time() - start)
 
             if step % self.validation_interval == 0:
                 loss = []

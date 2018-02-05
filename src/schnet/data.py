@@ -7,8 +7,6 @@ import numpy as np
 import tensorflow as tf
 from ase.db import connect
 from schnet.atoms import collect_neighbors, IsolatedAtomException
-import time
-
 
 def generate_neighbor_dataset(asedb, nbhdb, cutoff):
     '''
@@ -264,7 +262,6 @@ class DataProvider:
 
             for bstart in range(0, len(self.indices) - self.batch_size + 1,
                                 self.batch_size):
-                start = time.time()
                 batch = self.data_reader[
                     self.indices[bstart:bstart + self.batch_size]]
                 feed_dict = {
@@ -275,8 +272,6 @@ class DataProvider:
                     sess.run(self.enqueue_op, feed_dict=feed_dict)
                 except Exception as e:
                     coord.request_stop(e)
-                print('Enqueue:', time.time() - start)
-                time.sleep(0.1)
 
     def get_batch(self):
         deq = self.dequeue_op

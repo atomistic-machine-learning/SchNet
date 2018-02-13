@@ -71,11 +71,9 @@ class SchNetMD:
 
     def load_model(self, model_path):
         args = np.load(os.path.join(model_path, 'args.npy')).item()
-        assert args.atomref is None
 
         model = SchNet(args.interactions, args.basis, args.filters, args.cutoff,
-                       atomref=args.atomref, intensive=args.intensive,
-                       filter_pool_mode=args.filter_pool_mode)
+                       intensive=args.intensive, filter_pool_mode=args.filter_pool_mode)
         return model
 
     def get_energy_and_forces(self, positions):
@@ -96,7 +94,7 @@ class SchNetMD:
                 self.positions: positions
             }
             F, err = self.session.run([self.forces, self.error], feed_dict=feed_dict)
-            positions += rate * F
+            positions += rate * F[0]
             count += 1
             if count % 100 == 0:
                 print('Iteration ' + str(count))

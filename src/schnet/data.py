@@ -274,9 +274,7 @@ class DataProvider:
                     coord.request_stop(e)
 
     def get_batch(self):
-        deq = self.dequeue_op
-        deq['seg_m'] = tf.Print(deq['seg_m'], [tf.shape(deq['seg_m'])], message='Dequeue')
-        return deq
+        return self.dequeue_op
 
 
 def get_atoms_input(data):

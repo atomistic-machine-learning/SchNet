@@ -53,7 +53,7 @@ class SchNetInteractionBlock(L.Module):
         h = self.cfconv(x, w, seg_i, idx_j)
         v = self.dense(h)
         y = x + v
-        return y
+        return y, v
 
     def _calc_filter(self, dijk, seg_j, ratio_j):
         w = self.filternet(dijk, seg_j, ratio_j)
@@ -68,12 +68,14 @@ class SchNet(L.Module):
                  filter_pool_mode='sum',
                  return_features=False,
                  shared_interactions=False,
+                 atomization_energy=False,
                  n_embeddings=100, name=None):
         self.n_interactions = n_interactions
         self.n_basis = n_basis
         self.n_filters = n_filters
         self.n_embeddings = n_embeddings
         self.cutoff = cutoff
+        self.atomization_energy = atomization_energy
         self.shared_interactions = shared_interactions
         self.return_features = return_features
         self.intensive = intensive
@@ -149,9 +151,11 @@ class SchNet(L.Module):
         dijk = self.rbf(dijk)
 
         # interaction blocks
+        V = 0.
         for iblock in self.interaction_blocks:
-            x = iblock(x, dijk, idx_j, seg_i, seg_j, ratio_j)
+            x, v = iblock(x, dijk, idx_j, seg_i, seg_j, ratio_j)
             # x = print_shape(x)
+            V = V + v
 
         # output network
         h = self.dense1(x)
@@ -160,15 +164,14 @@ class SchNet(L.Module):
 
         # scale energy contributions
         y_i = y_i * self.std_per_atom + self.mean_per_atom
-        at_i = y_i
-        if self.e0 is not None:
+        if self.e0 is not None and not self.atomization_energy:
             y_i += self.e0(z)
 
         y = self.atom_pool(y_i, seg_m)
 
         if not self.return_features:
             return y
-        return y, y_i, at_i, x
+        return y, y_i, x, V
 
     def get_filters(self, r, offsets, idx_ik, idx_jk, seg_j, ratio_j):
         dijk = self.dist(r, offsets, idx_ik, idx_jk)

@@ -84,7 +84,7 @@ class SchNetMD:
         E, F = self.session.run([self.energy, self.forces], feed_dict=feed_dict)
         return E, F
 
-    def relax(self, positions, eps=0.01, rate=5e-4):
+    def relax(self, positions, eps=0.01, rate=1e-4):
         err = 100.
         positions = positions.reshape((-1, 3)).astype(np.float32)
         print('Start relaxation')
@@ -97,6 +97,6 @@ class SchNetMD:
             positions += rate * F[0]
             count += 1
             if count % 100 == 0:
-                print('Iteration ' + str(count))
+                print('Iteration ', str(count), 'Max Force:', err)
         print('Maximal force length: ' + str(err))
         return positions

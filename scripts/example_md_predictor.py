@@ -2,7 +2,7 @@ import os
 import argparse
 
 import schnet.md as md
-from ase.io import read
+from ase.io import read, write
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -24,5 +24,8 @@ if __name__ == '__main__':
     print('Force:', forces)
 
     if args.relax:
-        eq_pos = mdpred.relax(at.positions, eps=0.01, rate=5e-4)
+        eq_pos = mdpred.relax(at.positions, eps=1e-4, rate=5e-4)
+        at.set_positions(eq_pos)
+        relout = '.'.join(args.input.split('.')[:-1])+'_relaxed.xyz'
+        write(relout, at, format='xyz')
         print('Relaxed:', eq_pos)

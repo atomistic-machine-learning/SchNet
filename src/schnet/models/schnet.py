@@ -134,10 +134,10 @@ class SchNet(L.Module):
         tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, self.std_per_atom)
 
         if self.atomref is not None:
-            self.e0 = L.Embedding(self.n_embeddings, 1, trainable=False,
+            self.e0 = L.Embedding(self.n_embeddings, 1,
                                   embedding_init=self.atomref, name='atomref')
         else:
-            self.e0 = L.Embedding(self.n_embeddings, 1, trainable=False,
+            self.e0 = L.Embedding(self.n_embeddings, 1,
                                   embedding_init=tf.zeros_initializer(),
                                   name='atomref')
 

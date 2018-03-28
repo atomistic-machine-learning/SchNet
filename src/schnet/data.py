@@ -8,6 +8,7 @@ import tensorflow as tf
 from ase.db import connect
 from schnet.atoms import collect_neighbors, IsolatedAtomException
 
+
 def generate_neighbor_dataset(asedb, nbhdb, cutoff):
     '''
     Generates an ASE DB with neighborhood information from an ASE DB without it.

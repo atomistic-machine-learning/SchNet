@@ -151,11 +151,11 @@ class SchNet(L.Module):
         dijk = self.rbf(dijk)
 
         # interaction blocks
-        V = 0.
+        V = []
         for iblock in self.interaction_blocks:
             x, v = iblock(x, dijk, idx_j, seg_i, seg_j, ratio_j)
             # x = print_shape(x)
-            V = V + v
+            V.append(v)
 
         # output network
         h = self.dense1(x)

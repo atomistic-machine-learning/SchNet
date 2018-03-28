@@ -38,7 +38,7 @@ def collect_neighbors(at, cutoff):
     '''
     nbhlist = NeighborList(cutoffs=[cutoff*0.5] * len(at), bothways=True,
                            self_interaction=False)
-    nbhlist.build(at)
+    nbhlist.update(at)
     cell = at.cell
 
     idx_ik = []

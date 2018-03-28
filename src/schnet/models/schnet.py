@@ -114,7 +114,7 @@ class SchNet(L.Module):
         self.dense1 = L.Dense(self.n_basis, self.n_basis // 2,
                               activation=shifted_softplus)
         self.dense2 = L.Dense(self.n_basis // 2, 1,
-                              w_init=tf.zeros_initializer())
+                              w_init=tf.constant_initializer(0.0))
         if self.intensive:
             self.atom_pool = L.PoolSegments('mean')
         else:
@@ -134,11 +134,11 @@ class SchNet(L.Module):
         tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, self.std_per_atom)
 
         if self.atomref is not None:
-            self.e0 = L.Embedding(self.n_embeddings, 1, trainable=False,
+            self.e0 = L.Embedding(self.n_embeddings, 1,
                                   embedding_init=self.atomref, name='atomref')
         else:
-            self.e0 = L.Embedding(self.n_embeddings, 1, trainable=False,
-                                  embedding_init=tf.zeros_initializer(),
+            self.e0 = L.Embedding(self.n_embeddings, 1,
+                                  embedding_init=tf.constant_initializer(0.0),
                                   name='atomref')
 
     def _forward(self, z, r, offsets, idx_ik, idx_jk,

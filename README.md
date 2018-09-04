@@ -1,4 +1,6 @@
 # SchNet - a deep learning architecture for quantum chemistry
+
+_**Important: This package will not be further developed and supported. Please consider switching to our new pytorch-based package [SchNetPack](https://github.com/atomistic-machine-learning/schnetpack)!**_
  
 SchNet is a deep learning architecture that allows for spatially and chemically 
 resolved insights into quantum-mechanical observables of atomistic systems.
